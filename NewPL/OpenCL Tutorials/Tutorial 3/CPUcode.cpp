@@ -202,6 +202,8 @@ int main(int argc, char **argv) {
 		//put average here
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
 		std::cout << "The minimum temperature is = " << minV / 10 << std::endl;
+		float avgVal = averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size);
+		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl;
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
 		cin >> binNum;
