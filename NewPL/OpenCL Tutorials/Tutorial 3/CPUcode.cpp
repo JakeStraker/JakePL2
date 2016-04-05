@@ -105,47 +105,81 @@ int main(int argc, char **argv) {
 		int numOfSpace = 0;
 		int temp = 0; //Used to store a temporary value of temp as atomic_add only works on integers.
 		ifstream myfile("temp_lincolnshire_short.txt");
+		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
+		string findText[6];
+		for (int i = 0; i <= 4; i++)
+		{
+			std::cout << "Enter a " << values[i] << " or leave blank for all" << endl;
+			string input;
+			getline(cin, input);
+
+			if (!input.empty())
+			{
+				istringstream istr(input);
+				istr >> findText[i];
+			}
+			else { findText[i] = ""; }
+		}
 		if (myfile.is_open())
 		{
-			cout << "File Reading...\n";
+			std::cout << "File Reading...\n";
 			while (getline(myfile, line))
 			{
+				string lineItems[6];
+				int ndex = 0;
 				for (int i = 0; i < line.length(); i++)
 				{
-					word += line[i];
-					if (line[i] == searchItem || i == line.length() - 1)
+					if ((line[i] != searchItem))
 					{
-						numOfSpace++;
-						switch (numOfSpace)
+						lineItems[ndex] += line[i];
+					}
+					else { ndex++; }
+				}
+				bool okay = true;
+				for (int i = 0; i <= 5; i++)
+				{
+					if (findText[i] == "") { continue; }
+					else if (lineItems[i] == findText[i]) { continue; }
+					else { okay = false; break; }
+				}
+				if (okay == true) {
+					for (int i = 0; i < line.length(); i++)
+					{
+						word += line[i];
+						if (line[i] == searchItem || i == line.length() - 1)
 						{
-						case 1:
-							stationName.push_back(word);
-							word = "";
-							break;
-						case 2:
-							year.push_back(stoi(word));
-							word = "";
-							break;
-						case 3:
-							month.push_back(stoi(word));
-							word = "";
-							break;
-						case 4:
-							day.push_back(stoi(word));
-							word = "";
-							break;
-						case 5:
-							time.push_back(stoi(word));
-							word = "";
-							break;
-						case 6:
-							temp = int(stof(word) * 10);
-							temperature.push_back(temp);
-							numOfSpace = 0;
-							word = "";
-							break;
-						default:
-							break;
+							numOfSpace++;
+							switch (numOfSpace)
+							{
+							case 1:
+								stationName.push_back(word);
+								word = "";
+								break;
+							case 2:
+								year.push_back(stoi(word));
+								word = "";
+								break;
+							case 3:
+								month.push_back(stoi(word));
+								word = "";
+								break;
+							case 4:
+								day.push_back(stoi(word));
+								word = "";
+								break;
+							case 5:
+								time.push_back(stoi(word));
+								word = "";
+								break;
+							case 6:
+								temp = int(stof(word) * 10);
+								temperature.push_back(temp);
+								numOfSpace = 0;
+								word = "";
+								break;
+							default:
+								break;
+							}
 						}
 					}
 				}
@@ -203,12 +237,18 @@ int main(int argc, char **argv) {
 		//put average here
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
 		std::cout << "The minimum temperature is = " << minV / 10 << std::endl;
-		float avgVal = averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size);
+		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
 		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl;
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
-		cin >> binNum;
-
+		std::cin >> binNum;
+		while (binNum <= 0 || std::cin.fail())
+		{
+			std::cout << "Invalid Number of bins, please enter a number above 0" << endl;
+			std::cin.clear();
+			std::cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			std::cin >> binNum;
+		}
 		hostOutput = getHist(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size, binNum, minV, maxV);
 		float increment = ((maxV - minV) / binNum);
 		for (int i = 1; i < binNum + 1; i++) {

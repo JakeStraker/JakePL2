@@ -52,8 +52,8 @@ __kernel void minTemperature(__global const int* temperature, __global int* outp
 	for (int i = 1; i < N; i *= 2) {
 		if (!(scratch[lid] <= scratch[lid + i]))
 			scratch[lid] = scratch[lid + i];
-		barrier(CLK_LOCAL_MEM_FENCE);
-	}
+			barrier(CLK_LOCAL_MEM_FENCE);
+		}
 
 	if (!lid) {
 		atom_min(&output[0], scratch[lid]);
