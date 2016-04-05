@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <iomanip>
 
 #ifdef __APPLE__
 #include <OpenCL/cl.hpp>
@@ -153,7 +154,7 @@ int main(int argc, char **argv) {
 			myfile.close();
 		}
 		size_t local_size = (64, 1);
-		size_t padding_size = temperature.size() % local_size;;
+		size_t padding_size = temperature.size() % local_size;
 		/*
 		//if the input vector is not a multiple of the local_size
 		//insert additional neutral elements (0 for addition) so that the total will not be affected (make work for my working set of data)
@@ -212,7 +213,7 @@ int main(int argc, char **argv) {
 		float increment = ((maxV - minV) / binNum);
 		for (int i = 1; i < binNum + 1; i++) {
 			//std::cout << "Bin " << i+1 << ": " << outputList[i] << std::endl;
-			std::cout << "(" << ((minV + ((i - 1)*increment)) / 10) << ") - (" << ((minV + (i*increment)) / 10) << "):  " << (hostOutput[i - 1]) << std::endl;
+			std::cout << std::setprecision(3)  << "\t(" << ((minV + ((i - 1)*increment)) / 10) << ") - (" << ((minV + (i*increment)) / 10) << "):  \t" << (hostOutput[i - 1]) << std::endl;
 		}
 		}
 	catch (cl::Error err) {
