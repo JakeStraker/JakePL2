@@ -61,9 +61,9 @@ int calcMin(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::C
 	kernel_Average.setArg(0, buffer_A);
 	kernel_Average.setArg(1, buffer_B);
 	kernel_Average.setArg(2, cl::Local(1));
-
+	queue.enqueueFillBuffer(buffer_B, 0, 0, input_size);//zero B buffer on device memory
 	queue.enqueueNDRangeKernel(kernel_Average, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
-
+	
 	//Copy the result from device to host
 	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOutput[0]);
 
@@ -78,6 +78,7 @@ int calcMax(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::C
 	kernel_Average.setArg(0, buffer_A);
 	kernel_Average.setArg(1, buffer_B);
 	kernel_Average.setArg(2, cl::Local(1));
+	queue.enqueueFillBuffer(buffer_B, 0, 0, input_size);//zero B buffer on device memory
 
 	queue.enqueueNDRangeKernel(kernel_Average, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
 
@@ -135,6 +136,7 @@ int main(int argc, char **argv) {
 		//Part 4 - memory allocation
 		//host - input
 		vector<int> temperature;
+		vector<int> month;
 		//All variables used to manage data entered from text file and store in relevant vectors
 		string line;
 		char searchItem = ' ';
@@ -188,6 +190,10 @@ int main(int argc, char **argv) {
 							seperatorCount++;
 							switch (seperatorCount)
 							{
+							case 3:
+								month.push_back(stoi(word));
+								word = "";
+								break;
 							case 6:
 								temp = int(stof(word) * 10);
 								temperature.push_back(temp);
@@ -219,8 +225,11 @@ int main(int argc, char **argv) {
 
 		size_t input_elements = temperature.size();//number of input elements
 		size_t input_size = temperature.size()*sizeof(mytype);//size in bytes
+		size_t m_elements = month.size();
+		size_t m_size = month.size()*sizeof(mytype);
 		//host - output
 		std::vector<int> hostOutput(input_elements);
+		std::vector<int> seasonalOut(m_elements);
 		size_t output_size = hostOutput.size()*sizeof(mytype);//size in bytes
 		//device - buffers
 		cl::Buffer buffer_A(context, CL_MEM_READ_ONLY, input_size);
@@ -232,7 +241,6 @@ int main(int argc, char **argv) {
 		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, input_size, &temperature[0]);
 		queue.enqueueFillBuffer(buffer_B, 0, 0, output_size);//zero B buffer on device memory
 		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
-		
 		float maxV = (float)(calcMax(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
 		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
