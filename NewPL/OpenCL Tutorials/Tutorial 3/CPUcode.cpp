@@ -44,6 +44,40 @@ int averageTemperature(cl::Program program, cl::Buffer buffer_A, cl::Buffer buff
 	kernel_Average.setArg(0, buffer_A);
 	kernel_Average.setArg(1, buffer_B);
 	kernel_Average.setArg(2, cl::Local(1));
+	queue.enqueueFillBuffer(buffer_B, 0, 0, input_size);//zero B buffer on device memory
+	queue.enqueueNDRangeKernel(kernel_Average, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
+
+	//Copy the result from device to host
+	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOutput[0]);
+
+	return hostOutput[0];
+}
+int calcMin(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
+	size_t input_size, size_t input_elements, vector<int> hostOutput, size_t local_size)
+{
+	// Setup and execute the kernel (i.e. device code)
+	cl::Kernel kernel_Average = cl::Kernel(program, "minTemperature");//Average
+
+	kernel_Average.setArg(0, buffer_A);
+	kernel_Average.setArg(1, buffer_B);
+	kernel_Average.setArg(2, cl::Local(1));
+
+	queue.enqueueNDRangeKernel(kernel_Average, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
+
+	//Copy the result from device to host
+	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOutput[0]);
+
+	return hostOutput[0];
+}
+int calcMax(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
+	size_t input_size, size_t input_elements, vector<int> hostOutput, size_t local_size)
+{
+	// Setup and execute the kernel (i.e. device code)
+	cl::Kernel kernel_Average = cl::Kernel(program, "maxTemperature");//Average
+
+	kernel_Average.setArg(0, buffer_A);
+	kernel_Average.setArg(1, buffer_B);
+	kernel_Average.setArg(2, cl::Local(1));
 
 	queue.enqueueNDRangeKernel(kernel_Average, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
 
@@ -109,7 +143,7 @@ int main(int argc, char **argv) {
 		int temp = 0; //Used to store a temporary value of temp as atomic_add only works on integers.
 		ifstream myfile("temp_lincolnshire_short.txt");
 		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
-		string findText[5];
+		string findText[6];
 		for (int i = 0; i <= 4; i++)
 		{
 			std::cout << "Enter a " << values[i] << " or leave blank for all" << endl;
@@ -199,33 +233,15 @@ int main(int argc, char **argv) {
 
 		//5.1 copy array A to and initialise other arrays on device memory
 		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, input_size, &temperature[0]);
+		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
 		queue.enqueueFillBuffer(buffer_B, 0, 0, output_size);//zero B buffer on device memory
-
-		cl::Kernel kernel_Min = cl::Kernel(program, "minTemperature");//Minimum
-		kernel_Min.setArg(0, buffer_A);
-		kernel_Min.setArg(1, buffer_B);
-		kernel_Min.setArg(2, cl::Local(1));
-		queue.enqueueNDRangeKernel(kernel_Min, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
-		queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, output_size, &hostOutput[0]);
-		float minV = (float)hostOutput[0];
-		
-		queue.enqueueFillBuffer(buffer_B, 0, 0, output_size);//zero B buffer on device memory
-
-		cl::Kernel kernel_Max = cl::Kernel(program, "maxTemperature");//Maximum
-		kernel_Max.setArg(0, buffer_A);
-		kernel_Max.setArg(1, buffer_B);
-		kernel_Max.setArg(2, cl::Local(1));
-		queue.enqueueNDRangeKernel(kernel_Max, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
-		queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOutput[0]);
-		float maxV = (float)hostOutput[0];
-		//put average here
+		float maxV = (float)(calcMax(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
+		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
 		std::cout << "The minimum temperature is = " << minV / 10 << std::endl;
-		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
 		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl;
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
-		std::cout << "\n";
 		std::cin >> binNum;
 		while (binNum <= 0 || std::cin.fail())
 		{
@@ -235,12 +251,13 @@ int main(int argc, char **argv) {
 			std::cin >> binNum;
 		}
 		hostOutput = getHist(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size, binNum, minV, maxV);
+		std::cout << "-----------------------------------------------------------------------------------------------------" << endl;
 		float increment = ((maxV - minV) / binNum);
 		float histMax = 0;
 		for (int i = 1; i < binNum + 1; i++) { if (hostOutput[i - 1] > histMax) { histMax = hostOutput[i - 1]; } }
 		for (int i = 1; i < binNum + 1; i++) {
-			int hashCount = (((hostOutput[i - 1]) / histMax) * 60);
-			std::cout << std::fixed << std::setprecision(2)  << "  (" << ((minV + ((i - 1)*increment)) / 10) << ")   \t - \t   (" << ((minV + (i*increment)) / 10) << "):\t" << (hostOutput[i - 1]) << "\t |" << hashPrint(hashCount) << endl;
+		int hashCount = (((hostOutput[i - 1]) / histMax) * 60);
+		std::cout << std::fixed << std::setprecision(2)  << "  (" << ((minV + ((i - 1)*increment)) / 10) << ")   \t - \t   (" << ((minV + (i*increment)) / 10) << "):\t" << (hostOutput[i - 1]) << "\t |" << hashPrint(hashCount) << endl;
 		}
 		}
 	catch (cl::Error err) {
