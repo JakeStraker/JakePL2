@@ -52,6 +52,15 @@ int averageTemperature(cl::Program program, cl::Buffer buffer_A, cl::Buffer buff
 
 	return hostOutput[0];
 }
+string hashPrint(int n)
+{
+	string stream = "";
+	for (int i = 0; i < n; i++)
+	{
+		stream += '#';
+	}
+	return stream;
+}
 
 
 int main(int argc, char **argv) {
@@ -91,22 +100,16 @@ int main(int argc, char **argv) {
 		typedef int mytype;
 		//Part 4 - memory allocation
 		//host - input
-		vector<string> stationName;
-		vector<int> year;
-		vector<int> month;
-		vector<int> day;
-		vector<int> time;
 		vector<int> temperature;
 		//All variables used to manage data entered from text file and store in relevant vectors
 		string line;
 		char searchItem = ' ';
 		string word = "";
-		int numOfChar = 0;
 		int numOfSpace = 0;
 		int temp = 0; //Used to store a temporary value of temp as atomic_add only works on integers.
 		ifstream myfile("temp_lincolnshire_short.txt");
 		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
-		string findText[6];
+		string findText[5];
 		for (int i = 0; i <= 4; i++)
 		{
 			std::cout << "Enter a " << values[i] << " or leave blank for all" << endl;
@@ -151,26 +154,6 @@ int main(int argc, char **argv) {
 							numOfSpace++;
 							switch (numOfSpace)
 							{
-							case 1:
-								stationName.push_back(word);
-								word = "";
-								break;
-							case 2:
-								year.push_back(stoi(word));
-								word = "";
-								break;
-							case 3:
-								month.push_back(stoi(word));
-								word = "";
-								break;
-							case 4:
-								day.push_back(stoi(word));
-								word = "";
-								break;
-							case 5:
-								time.push_back(stoi(word));
-								word = "";
-								break;
 							case 6:
 								temp = int(stof(word) * 10);
 								temperature.push_back(temp);
@@ -178,6 +161,7 @@ int main(int argc, char **argv) {
 								word = "";
 								break;
 							default:
+								word = "";
 								break;
 							}
 						}
@@ -241,6 +225,7 @@ int main(int argc, char **argv) {
 		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl;
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
+		std::cout << "\n";
 		std::cin >> binNum;
 		while (binNum <= 0 || std::cin.fail())
 		{
@@ -251,9 +236,11 @@ int main(int argc, char **argv) {
 		}
 		hostOutput = getHist(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size, binNum, minV, maxV);
 		float increment = ((maxV - minV) / binNum);
+		float histMax = 0;
+		for (int i = 1; i < binNum + 1; i++) { if (hostOutput[i - 1] > histMax) { histMax = hostOutput[i - 1]; } }
 		for (int i = 1; i < binNum + 1; i++) {
-			//std::cout << "Bin " << i+1 << ": " << outputList[i] << std::endl;
-			std::cout << std::setprecision(3)  << "\t(" << ((minV + ((i - 1)*increment)) / 10) << ") - (" << ((minV + (i*increment)) / 10) << "):  \t" << (hostOutput[i - 1]) << std::endl;
+			int hashCount = (((hostOutput[i - 1]) / histMax) * 60);
+			std::cout << std::fixed << std::setprecision(2)  << "  (" << ((minV + ((i - 1)*increment)) / 10) << ")   \t - \t   (" << ((minV + (i*increment)) / 10) << "):\t" << (hostOutput[i - 1]) << "\t |" << hashPrint(hashCount) << endl;
 		}
 		}
 	catch (cl::Error err) {

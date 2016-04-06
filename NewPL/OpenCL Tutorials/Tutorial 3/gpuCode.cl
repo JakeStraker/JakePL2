@@ -31,7 +31,6 @@ __kernel void histogram(__global const int* temperature, __global int* output, i
 	int i = bin_index;
 	int n = 0;
 	int increment = range/bincount;
-	int topBound = maxval - increment;
 	int compareval = minval + increment;
 	while (i > compareval)
 	{
