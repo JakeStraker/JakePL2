@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
 		string line;
 		char searchItem = ' ';
 		string word = "";
-		int numOfSpace = 0;
+		int seperatorCount = 0;
 		int temp = 0; //Used to store a temporary value of temp as atomic_add only works on integers.
 		ifstream myfile("temp_lincolnshire_short.txt");
 		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
@@ -185,13 +185,13 @@ int main(int argc, char **argv) {
 						word += line[i];
 						if (line[i] == searchItem || i == line.length() - 1)
 						{
-							numOfSpace++;
-							switch (numOfSpace)
+							seperatorCount++;
+							switch (seperatorCount)
 							{
 							case 6:
 								temp = int(stof(word) * 10);
 								temperature.push_back(temp);
-								numOfSpace = 0;
+								seperatorCount = 0;
 								word = "";
 								break;
 							default:
@@ -207,21 +207,18 @@ int main(int argc, char **argv) {
 		}
 		size_t local_size = (64, 1);
 		size_t padding_size = temperature.size() % local_size;
-		/*
 		//if the input vector is not a multiple of the local_size
 		//insert additional neutral elements (0 for addition) so that the total will not be affected (make work for my working set of data)
 		if (padding_size) {
 			//create an extra vector with neutral values
 			std::vector<int> A_ext(local_size-padding_size, 0);
 			//append that extra vector to our input
-			A.insert(A.end(), A_ext.begin(), A_ext.end());
+			temperature.insert(temperature.end(), A_ext.begin(), A_ext.end());
 		}
-		*/
+		
 
 		size_t input_elements = temperature.size();//number of input elements
 		size_t input_size = temperature.size()*sizeof(mytype);//size in bytes
-		size_t nr_groups = input_elements / local_size;
-
 		//host - output
 		std::vector<int> hostOutput(input_elements);
 		size_t output_size = hostOutput.size()*sizeof(mytype);//size in bytes
@@ -233,8 +230,9 @@ int main(int argc, char **argv) {
 
 		//5.1 copy array A to and initialise other arrays on device memory
 		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, input_size, &temperature[0]);
-		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
 		queue.enqueueFillBuffer(buffer_B, 0, 0, output_size);//zero B buffer on device memory
+		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
+		
 		float maxV = (float)(calcMax(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
 		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
