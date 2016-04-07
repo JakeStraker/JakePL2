@@ -20,22 +20,28 @@ void print_help() {
 	std::cerr << "  -l : list all platforms and devices" << std::endl;
 	std::cerr << "  -h : print this message" << std::endl;
 }
-
+/*
+This Function communicates with and returns histogram data from the kernel to then be written to the command window 
+*/
 vector<int> getHist(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
 	size_t input_size, size_t input_elements, vector<int> hostOut, size_t local_size, int count, int minval, int maxval) {
 	cl::Kernel kernel_Hist = cl::Kernel(program, "histogram");
 	kernel_Hist.setArg(0, buffer_A);
 	kernel_Hist.setArg(1, buffer_B);
 	kernel_Hist.setArg(2, count);
+	/*
+	Min and max are handed to the histogram so that the bin sizes can be automatically calculated
+	*/
 	kernel_Hist.setArg(3, minval);
 	kernel_Hist.setArg(4, maxval);
 	queue.enqueueFillBuffer(buffer_B, 0, 0, input_size);//zero B buffer on device memory
-	queue.enqueueNDRangeKernel(kernel_Hist, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size));
-	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOut[0]);
+	queue.enqueueNDRangeKernel(kernel_Hist, cl::NullRange, cl::NDRange(input_elements), cl::NDRange(local_size)); //execute the kernel instructions
+	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOut[0]); //read the kernel results
 	return hostOut;
 
 }
-int averageTemperature(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
+//This function returns the total temperature
+int totalTemperature(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
 	size_t input_size, size_t input_elements, vector<int> hostOutput, size_t local_size)
 {
 	// Setup and execute the kernel (i.e. device code)
@@ -50,7 +56,7 @@ int averageTemperature(cl::Program program, cl::Buffer buffer_A, cl::Buffer buff
 	//Copy the result from device to host
 	queue.enqueueReadBuffer(buffer_B, CL_TRUE, 0, input_size, &hostOutput[0]);
 
-	return hostOutput[0];
+	return (hostOutput[0]/10);
 }
 int calcMin(cl::Program program, cl::Buffer buffer_A, cl::Buffer buffer_B, cl::CommandQueue queue,
 	size_t input_size, size_t input_elements, vector<int> hostOutput, size_t local_size)
@@ -133,19 +139,17 @@ int main(int argc, char **argv) {
 			throw err;
 		}
 		typedef int mytype;
-		//Part 4 - memory allocation
-		//host - input
+		//creating vectors for storing the information (to be used as the input buffer)
 		vector<int> temperature;
 		vector<int> month;
-		//All variables used to manage data entered from text file and store in relevant vectors
 		string line;
-		char searchItem = ' ';
 		string word = "";
 		int seperatorCount = 0;
-		int temp = 0; //Used to store a temporary value of temp as atomic_add only works on integers.
-		ifstream myfile("temp_lincolnshire_short.txt");
+		int temp = 0; //Temporary temperature value
+		ifstream myfile("temp_lincolnshire_short.txt"); //file to read in
 		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
-		string findText[6];
+		string findText[6]; //array to hold what the user is inputting
+		//This loop enables the user to add all of the user values without having to use repeating cout/cin
 		for (int i = 0; i <= 4; i++)
 		{
 			std::cout << "Enter a " << values[i] << " or leave blank for all" << endl;
@@ -166,9 +170,9 @@ int main(int argc, char **argv) {
 			{
 				string lineItems[6];
 				int ndex = 0;
-				for (int i = 0; i < line.length(); i++)
+				for (int i = 0; i < line.length(); i++) //Here I essentially rewrote string.split() from other languages (Java, c#) however it is specific case for (' ')
 				{
-					if ((line[i] != searchItem))
+					if ((line[i] != ' '))
 					{
 						lineItems[ndex] += line[i];
 					}
@@ -176,26 +180,29 @@ int main(int argc, char **argv) {
 				}
 				bool okay = true;
 				for (int i = 0; i <= 5; i++)
-				{
+				{ 
+					/*
+					Here is a hierarchical check in order to check if the data item is the item the user has requested, skip further checks if the user input is blank.
+					*/
 					if (findText[i] == "") { continue; }
 					else if (lineItems[i] == findText[i]) { continue; }
 					else { okay = false; break; }
 				}
-				if (okay == true) {
+				if (okay == true) { //if line is chosen to be read do it, if not restart loop
 					for (int i = 0; i < line.length(); i++)
 					{
 						word += line[i];
-						if (line[i] == searchItem || i == line.length() - 1)
+						if (line[i] == ' ' || i == line.length() - 1)
 						{
 							seperatorCount++;
-							switch (seperatorCount)
+							switch (seperatorCount) //number of recorded seperators designated what data item it is
 							{
 							case 3:
-								month.push_back(stoi(word));
+								month.push_back(stoi(word)); //remnants from trying to implement seasons (not required)
 								word = "";
 								break;
 							case 6:
-								temp = int(stof(word) * 10);
+								temp = int(stof(word) * 10); //multiplied by 10 for integer
 								temperature.push_back(temp);
 								seperatorCount = 0;
 								word = "";
@@ -221,8 +228,6 @@ int main(int argc, char **argv) {
 			//append that extra vector to our input
 			temperature.insert(temperature.end(), A_ext.begin(), A_ext.end());
 		}
-		
-
 		size_t input_elements = temperature.size();//number of input elements
 		size_t input_size = temperature.size()*sizeof(mytype);//size in bytes
 		size_t m_elements = month.size();
@@ -235,35 +240,31 @@ int main(int argc, char **argv) {
 		cl::Buffer buffer_A(context, CL_MEM_READ_ONLY, input_size);
 		cl::Buffer buffer_B(context, CL_MEM_READ_WRITE, input_size);
 		cl::Buffer buffer_output_size(context, CL_MEM_READ_WRITE, output_size);
-		//Part 5 - device operations
-
-		//5.1 copy array A to and initialise other arrays on device memory
 		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, input_size, &temperature[0]);
-		queue.enqueueFillBuffer(buffer_B, 0, 0, output_size);//zero B buffer on device memory
-		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
-		float maxV = (float)(calcMax(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size));
-		float avgVal = (averageTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size) / 10);
-		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl;
+		float minV = (float)(calcMin(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size)); //get min value from kernel
+		float maxV = (float)(calcMax(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size)); //get max value from kernel
+		float avgVal = (totalTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size)); //get total value to be used in average
+		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl; //output as int/10
 		std::cout << "The minimum temperature is = " << minV / 10 << std::endl;
-		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl;
+		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl; //total/n = avg
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
 		std::cin >> binNum;
-		while (binNum <= 0 || std::cin.fail())
+		while (binNum <= 0 || std::cin.fail()) //checkflags, make sure its positive
 		{
 			std::cout << "Invalid Number of bins, please enter a number above 0" << endl;
 			std::cin.clear();
 			std::cin.ignore(numeric_limits<streamsize>::max(), '\n');
 			std::cin >> binNum;
 		}
-		hostOutput = getHist(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size, binNum, minV, maxV);
-		std::cout << "-----------------------------------------------------------------------------------------------------" << endl;
+		hostOutput = getHist(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size, binNum, minV, maxV); //get histogram data out
+		std::cout << "-----------------------------------------------------------------------------------------------------" << endl; //spacers
 		float increment = ((maxV - minV) / binNum);
 		float histMax = 0;
-		for (int i = 1; i < binNum + 1; i++) { if (hostOutput[i - 1] > histMax) { histMax = hostOutput[i - 1]; } }
+		for (int i = 1; i < binNum + 1; i++) { if (hostOutput[i - 1] > histMax) { histMax = hostOutput[i - 1]; } } //calculations to improve display
 		for (int i = 1; i < binNum + 1; i++) {
 		int hashCount = (((hostOutput[i - 1]) / histMax) * 60);
-		std::cout << std::fixed << std::setprecision(2)  << "  (" << ((minV + ((i - 1)*increment)) / 10) << ")   \t - \t   (" << ((minV + (i*increment)) / 10) << "):\t" << (hostOutput[i - 1]) << "\t |" << hashPrint(hashCount) << endl;
+		std::cout << std::fixed << std::setprecision(2)  << "  (" << ((minV + ((i - 1)*increment)) / 10) << ")   \t - \t   (" << ((minV + (i*increment)) / 10) << "):\t" << (hostOutput[i - 1]) << "\t |#" << hashPrint(hashCount) << endl; //display histogram code (serial calculations done for display reasons)
 		}
 		}
 	catch (cl::Error err) {
