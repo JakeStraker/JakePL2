@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 		string word = "";
 		int seperatorCount = 0;
 		int temp = 0; //Temporary temperature value
-		ifstream myfile("temp_lincolnshire_short.txt"); //file to read in
+		ifstream myfile("temp_lincolnshire.txt"); //file to read in
 		string values[5] = { "Weather Station", "Year", "Month", "Day" , "Time" };
 		string findText[6]; //array to hold what the user is inputting
 		//This loop enables the user to add all of the user values without having to use repeating cout/cin
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
 		float avgVal = (totalTemperature(program, buffer_A, buffer_output_size, queue, input_size, input_elements, hostOutput, local_size)); //get total value to be used in average
 		std::cout << "The maximum temperature is = " << maxV / 10 << std::endl; //output as int/10
 		std::cout << "The minimum temperature is = " << minV / 10 << std::endl;
-		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl; //total/n = avg
+		std::cout << "The Average Temperature is = " << avgVal / input_elements << endl; //total/n = avg //9.7726
 		std::cout << "Enter number of Histogram Bins" << endl;
 		int binNum = 1;
 		std::cin >> binNum;
